@@ -41,7 +41,7 @@ class ViewController: UIViewController {
   lazy var visionModel: VNCoreMLModel = {
     do {
 //        let coreMLWrapper = SnackLocalizationModel()
-      let coreMLWrapper = SnackDetector()
+      let coreMLWrapper = try SnackDetector(configuration: MLModelConfiguration())
       let visionModel = try VNCoreMLModel(for: coreMLWrapper.model)
 
       if #available(iOS 13.0, *) {
@@ -123,13 +123,13 @@ class ViewController: UIViewController {
   }
 
   func setUpCamera() {
-    videoCapture = VideoCapture()
-    videoCapture.delegate = self
+      self.videoCapture = VideoCapture()
+      self.videoCapture.delegate = self
 
     // Change this line to limit how often the video capture delegate gets
     // called. 1 means it is called 30 times per second, which gives realtime
     // results but also uses more battery power.
-    videoCapture.frameInterval = 1
+    videoCapture.frameInterval = 2
 
     videoCapture.setUp(sessionPreset: .hd1280x720) { success in
       if success {
@@ -180,11 +180,30 @@ class ViewController: UIViewController {
   }
 
   func processObservations(for request: VNRequest, error: Error?) {
+      if let results = request.results as? [VNRecognizedObjectObservation]{
+//          print(results)
+          
+              DispatchQueue.main.async {
+                  self.show(predictions: results)
+    
+          }
+      }
     //call show function
   }
 
   func show(predictions: [VNRecognizedObjectObservation]) {
    //process the results, call show function in BoundingBoxView
+      for i in 0..<min(maxBoundingBoxViews,predictions.count) {
+          let label = predictions[i].labels.sorted{ $0.confidence > $1.confidence}[0].identifier
+          let screenRect = UIScreen.main.bounds
+          let screenWidth = screenRect.size.width
+          let screenHeight = screenRect.size.height
+          let cg = predictions[i].boundingBox
+          let frame = CGRect(x: cg.origin.x * screenWidth, y: cg.origin.y * screenHeight, width: cg.size.width * screenWidth, height: cg.size.height * screenHeight)
+          boundingBoxViews[i].show(frame: frame, label: label, color: colors[label] ?? UIColor(hue: 0, saturation: 0, brightness: 0, alpha: 0))
+
+      }
+}
 }
 
 extension ViewController: VideoCaptureDelegate {
